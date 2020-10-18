@@ -3,7 +3,7 @@
 
 #include "gpulib.h"
 
-static const cl_float4 SIGN_XYZ = {1, -1, 1, -1};
+static const cl_float4 SIGN_XYZ = {-1, 1, -1, 1};
 static const cl_float4 SIGN_XZY = {-1, -1, 1, 1};
 static const cl_float4 SIGN_YXZ = {1, -1, -1, 1};
 

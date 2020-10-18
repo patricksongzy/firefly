@@ -4,9 +4,9 @@
 #include "gpulib.h"
 #include "geometry.h"
 
-#define WIDTH 1024
-#define HEIGHT 1024
-#define NUM_SAMPLES 1024
+#define WIDTH 2560 
+#define HEIGHT 1440
+#define NUM_SAMPLES 32
 
 static cl_device_id device;
 
@@ -14,12 +14,13 @@ static cl_context context;
 static cl_command_queue command_queue;
 
 // vertical field of view in radians
-static cl_float fov = 1.2f;
+static cl_float fov = 1.25f;
 // world coordinates
 static cl_float3 camera_position = {160, 50, 52};
 // Euler camera rotation to point forward with origin at the top left
-// TODO THE EULER_TO_QUAT ORDER IS REVERSED
-static cl_float3 camera_rotation = {CL_M_PI_2, 0, CL_M_PI_2};
+// TODO check YXZ XZY orders
+// pitch yaw roll
+static cl_float3 camera_rotation = {CL_M_PI_2, -CL_M_PI_2, 0};
 
 struct sphere
 {
@@ -41,11 +42,11 @@ cl_int generate_directions(cl_mem *directions_buf)
     cl_program program;
     cl_kernel kernel;
 
-    size_t local;
-    size_t global = HEIGHT * WIDTH;
+    size_t local[] = {1};
+    size_t global[] = {WIDTH * HEIGHT};
 
-    cl_uint height = HEIGHT;
     cl_uint width = WIDTH;
+    cl_uint height = HEIGHT;
 
     cl_float z_distance = -(height / (2.0f * tan(fov / 2.0f)));
     cl_float4 camera_quat = euler_to_quat(camera_rotation, "xyz");
@@ -79,11 +80,11 @@ cl_int generate_directions(cl_mem *directions_buf)
     if (ret != CL_SUCCESS)
         goto cleanup_buf;
 
-    ret = clGetKernelWorkGroupInfo(kernel, device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &local, NULL);
-    if (ret != CL_SUCCESS)
-        goto cleanup_buf;
+    // ret = clGetKernelWorkGroupInfo(kernel, device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &local, NULL);
+    // if (ret != CL_SUCCESS)
+    //     goto cleanup_buf;
 
-    ret = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL, &global, &local, 0, NULL, NULL);
+    ret = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL, global, local, 0, NULL, NULL);
     if (ret != CL_SUCCESS)
         goto cleanup_buf;
 
@@ -107,29 +108,29 @@ cl_int render(cl_float3 **image, cl_mem *directions_buf)
     cl_program program;
     cl_kernel kernel;
 
-    size_t local;
-    size_t global = HEIGHT * WIDTH;
+    size_t local_size;
+    size_t global[] = {WIDTH, HEIGHT};
 
-    cl_uint height = HEIGHT;
     cl_uint width = WIDTH;
+    cl_uint height = HEIGHT;
     cl_uint num_samples = NUM_SAMPLES;
 
     // scene courtesy of smallpt
     struct sphere s1;
-    s1.position = (cl_float3){81.6f, 1e4 + 1, 40.8f};
-    s1.colour = (cl_float3){0.75, 0.25, 0.25};
+    s1.position = (cl_float3){81.6f, 1e4f + 1, 40.8f};
+    s1.colour = (cl_float3){0.75f, 0.25f, 0.25f};
     s1.emission = (cl_float3){0, 0, 0};
     s1.radius = 1e4f;
 
     struct sphere s2;
-    s2.position = (cl_float3){81.6f, -1e4 + 99, 40.8f};
-    s2.colour = (cl_float3){0.25, 0.25, 0.75};
+    s2.position = (cl_float3){81.6f, -1e4f + 99, 40.8f};
+    s2.colour = (cl_float3){0.25f, 0.25f, 0.75f};
     s2.emission = (cl_float3){0, 0, 0};
     s2.radius = 1e4f;
 
     struct sphere s3;
-    s3.position = (cl_float3){1e4, 50, 40.8f};
-    s3.colour = (cl_float3){0.75, 0.75, 0.75};
+    s3.position = (cl_float3){1e4f, 50, 40.8f};
+    s3.colour = (cl_float3){0.75f, 0.75f, 0.75f};
     s3.emission = (cl_float3){0, 0, 0};
     s3.radius = 1e4f;
 
@@ -140,14 +141,14 @@ cl_int render(cl_float3 **image, cl_mem *directions_buf)
     s4.radius = 1e4f;
 
     struct sphere s5;
-    s5.position = (cl_float3){81.6f, 50, 1e4};
-    s5.colour = (cl_float3){0.75, 0.75, 0.75};
+    s5.position = (cl_float3){81.6f, 50, 1e4f};
+    s5.colour = (cl_float3){0.75f, 0.75f, 0.75f};
     s5.emission = (cl_float3){0, 0, 0};
     s5.radius = 1e4f;
 
     struct sphere s6;
     s6.position = (cl_float3){81.6f, 50, -1e4 + 81.6f};
-    s6.colour = (cl_float3){0.75, 0.75, 0.75};
+    s6.colour = (cl_float3){0.75f, 0.75f, 0.75f};
     s6.emission = (cl_float3){0, 0, 0};
     s6.radius = 1e4f;
 
@@ -164,10 +165,10 @@ cl_int render(cl_float3 **image, cl_mem *directions_buf)
     s8.radius = 16.5f;
 
     struct sphere s9;
-    s9.position = (cl_float3){81.6, 50, 681.6f - 0.27f};
+    s9.position = (cl_float3){81.6f, 50, 55};
     s9.colour = (cl_float3){0, 0, 0};
-    s9.emission = (cl_float3){12, 12, 12};
-    s9.radius = 600;
+    s9.emission = (cl_float3){14, 14, 14};
+    s9.radius = 6.5f;
 
     struct sphere scene_spheres[] = {s1, s2, s3, s4, s5, s6, s7, s8, s9};
     size_t num_spheres = sizeof(scene_spheres) / sizeof(struct sphere);
@@ -219,11 +220,14 @@ cl_int render(cl_float3 **image, cl_mem *directions_buf)
     if (ret != CL_SUCCESS)
         goto cleanup_buf;
 
-    ret = clGetKernelWorkGroupInfo(kernel, device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &local, NULL);
+    ret = clGetKernelWorkGroupInfo(kernel, device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &local_size, NULL);
     if (ret != CL_SUCCESS)
         goto cleanup_buf;
 
-    ret = clEnqueueNDRangeKernel(command_queue, kernel, 1, NULL, &global, &local, 0, NULL, NULL);
+    local_size = (size_t) sqrt(local_size);
+    size_t local[] = {local_size, local_size};
+
+    ret = clEnqueueNDRangeKernel(command_queue, kernel, 2, NULL, global, local, 0, NULL, NULL);
     if (ret != CL_SUCCESS)
         goto cleanup_buf;
 
